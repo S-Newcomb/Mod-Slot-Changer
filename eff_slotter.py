@@ -1,6 +1,6 @@
 import sys, os
 
-def find_all_files(output: list[str], root: str):
+def find_all_files(output, root: str):
     for root, dirs, files in os.walk(root):
         for dir in dirs:
             find_all_files(output, dir)
