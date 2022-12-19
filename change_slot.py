@@ -1,5 +1,6 @@
 import sys, os, shutil
 import tkinter as tk
+from xmlrpc.client import TRANSPORT_ERROR
 import eff_slotter
 from tkinter import filedialog
 
@@ -14,7 +15,14 @@ def switchSlot(mod_folder, slot):
             #Check if this is the fighter name folder and assign it
             subDirs = os.listdir(root + "//" + dir)
             if (root.find("fighter") and subDirs.count("model") > 0):
-                fighter = dir
+
+                numDirs = len(os.listdir(root))
+                if (numDirs == 1):
+                    fighter = dir
+
+                #Special case for Kirby costumes
+                elif(dir.count("kirby") == -1):
+                    fighter = dir 
 
             #if directory contains slot indicator rename it
             if (dir.find("c0") > -1):
@@ -79,16 +87,13 @@ def pruneSlots(modFolder, slot):
                         os.remove(root + "//" + file)
 
 
-def main():
-    prune = False
-    commandArgs = sys.argv[1:]
-    if commandArgs.count("-p") > 0:
-        prune = True
-
+def main(prune : bool):
+    #Might be better to extract this to the outer script and pass it in
     root = tk.Tk()
     folder_path = filedialog.askdirectory(initialdir="./", title="Open the root directory for your mod")
     if (os.path.isdir(folder_path) == False):
         assert("Could not find path" + folder_path)
+
     if prune:
         slotToKeep = input("You selected to prune char slots for this file \nWhich slot would you like to keep? ")
         pruneSlots(folder_path, slotToKeep)
@@ -105,16 +110,42 @@ def main():
                 print("Changing effect to one slot completed")
 
 again = True
+prune = False
+commandArgs = sys.argv[1:]
+if commandArgs.count("-p") > 0:
+    prune = True
+
 while again:
     try:
-        main()
+        main(prune)
+
+    #Catch case where there are multiple char slots present
+    except WindowsError as winErr:
+        if winErr.winerror == 183:
+            msg = ("Multiple character slots were detected, please remove all but one char slot before attempting to move.\n"
+                    "Would you like to prune slots to rectify this? (Y/N) ")
+            ans = input(msg)
+            if (ans == "Y" or ans == "y"):
+                main(True)
+            else:
+                print(WindowsError, winErr)
+                sys.exit(1)
+        else:
+            print(WindowsError, winErr)
+            sys.exit(1)
+
+    #Catch everything else
     except Exception as error:
         print(Exception, error)
         sys.exit(1)
 
     again = False
-    string = input("Press Y to move another slot or press any other key to exit ")
+    prune = False
+    string = input("Press Y: move another slot \nPress P: Prune slots \nAny other key: Exit\n")
+
     if (string == "Y" or string == "y"):
         again = True
-
-
+    
+    elif (string == "P" or string == "p"):
+        again = True
+        prune = True 
